@@ -1,0 +1,10 @@
+# 简历（绝对不上传）
+*简历*
+*resume*
+*cv*
+*.docx
+*.pdf
+
+# 系统文件
+.DS_Store
+Thumbs.db
