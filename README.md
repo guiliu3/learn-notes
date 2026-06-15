@@ -29,7 +29,6 @@ learn-notes/
 | 垃圾收集器：CMS vs G1 | ✅ |
 | 类加载机制与双亲委派模型 | ✅ |
 | JUC 并发：synchronized、volatile、线程池 | 🔲 |
-| OOM 排查：dump 文件分析 | 🔲 |
 
 ### 二、MySQL 数据库
 
