@@ -4,7 +4,23 @@
 *cv*
 *.docx
 *.pdf
+CLAUDE.md
+
+# 本地 IDE 配置
+.idea/
+
+# 面试题资料
+面试题/
+
+# Maven 构建输出
+target/
 
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# claude文件
+.claude
+
+# git忽略文件
+.gitignore

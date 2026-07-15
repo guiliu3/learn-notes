@@ -26,7 +26,9 @@ product:detail:10086
 - 单个 Key QPS 很高。
 - 压力集中在一个 Redis 节点。
 - 可能导致该节点 CPU、网络打满。
-- 集群模式下也无法靠自动分片解决，因为同一个 Key 只能落到一个 slot。
+- 集群模式下也无法靠自动分片解决，因为同一个 Key 只能落到一个 slot。❓
+
+
 
 ## 3. 热点 Key 常见场景
 
@@ -150,6 +152,42 @@ redis-cli --hotkeys
 
 - 多实例本地缓存一致性问题。
 - 更新后需要通知刷新。
+- 示例：
+```java
+@Service
+public class ConfigService {
+
+    private final Cache<String, String> localCache =
+            Caffeine.newBuilder()
+                    .maximumSize(1000)
+                    .expireAfterWrite(Duration.ofMinutes(5))
+                    .build();
+
+    private final StringRedisTemplate redisTemplate;
+
+    public ConfigService(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
+    public String getConfig(String key) {
+        return localCache.get(key, cacheKey ->
+                redisTemplate.opsForValue().get(cacheKey)
+        );
+    }
+}
+```
+
+- 数据一致性解决办法：
+```text
+更新数据库
+  ↓
+删除 Redis 缓存
+  ↓
+通过 MQ / Redis PubSub 通知各应用节点
+  ↓
+各节点删除 Caffeine 本地缓存
+```
+
 
 ### 6.2 Key 拆分
 
@@ -171,7 +209,12 @@ exam:notice:3
 - 内容相同。
 - 更新频率低。
 - 读流量极高。
-
+- 示例：
+```java
+        int index = ThreadLocalRandom.current().nextInt(1, 5);
+        String key = "product:10001:copy:" + index;
+        String value = redisTemplate.opsForValue().get(key);
+```
 ### 6.3 永不过期 + 异步刷新
 
 对热点配置类数据，可以不设置短 TTL，而是后台异步刷新。
