@@ -21,6 +21,12 @@ HashMap
       hash
       next
 ```
+- 核心参数：
+   1. Node<K,V>[] table; // 哈希桶数组
+   2. int size; // 元素个数
+   3. int modCount; // 结构修改次数
+   4. int threshold; // 扩容阙值
+   5. float loadFactor;//负载因子
 
 冲突较少时：
 
@@ -105,6 +111,72 @@ index = (n - 1) & hash
 size > 12 后扩容到 32
 ```
 
+- 扩容的步骤共分为4个步骤
+```text
+resize()
+   ↓
+① 读取旧容量和旧阈值
+   ↓
+② 计算新容量 newCap、新阈值 newThr
+   ↓
+③ 创建新数组 newTab
+   ↓
+④ 把旧数组中的节点迁移到新数组
+```  
+- resize函数阅读
+```text
+②.计算新容量 newCap、新阈值 newThr 有三种情况
+  场景 1：已有数组，正常扩容
+          oldCap >= MAXIMUM_CAPACITY？//当容量已经达到最大值.直接返回oldTab，不再扩容
+          否则：容量扩大为原来的 2 倍  ，阙值也是2倍，直接  32/24
+     
+  场景 2：还没有数组，但构造时指定了初始容量
+        newCap = oldThr;  // 比如指定new HashMap(20),则newCap=32
+  场景 3：还没有数组，也没指定容量，使用默认值
+       newCap = DEFAULT_INITIAL_CAPACITY; // 16
+       newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);  // 12
+
+  // 之前场景存在newThr未计算，做一个补充
+   if (newThr == 0) {
+      float ft = (float)newCap * loadFactor;
+      newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                (int)ft : Integer.MAX_VALUE);
+   }
+   条件：如果没有超过最大容量：
+          正常使用 newCap × loadFactor
+   条件：如果即将超过最大容量：
+          阈值设为 Integer.MAX_VALUE
+   // 补充结束
+
+  ③：创建新数组
+  @SuppressWarnings({"rawtypes","unchecked"})
+            Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+        table = newTab;
+   //     
+ 
+  ④：把旧数组的节点迁移到新数组
+   场景1：旧数组时空的，直接返回
+   场景2：不为空，遍历老数组
+         if ((e = oldTab[j]) != null) //取数组桶的头结点 
+         // 为空，直接处理下一个桶的节点
+         // 不为空，迁移该桶节点
+            // 桶只有1个节点：重新计算它在新数组中的下标
+             if (e.next == null)
+                        newTab[e.hash & (newCap - 1)] = e;
+             // 如果下一个节点是一个树
+                把红黑树拆分成两组：
+                    低位组：放到 newTab[j]
+                    高位组：放到 newTab[j + oldCap]            
+             // 当前桶是链表
+                假设扩容前：
+                   oldTab[3]：A → B → C → D
+               扩容后，不会为每个节点重新执行完整的下标计算和链表插入，而是把链表拆成两条：
+                   低位链表 lo： A → C
+                   高位链表 hi: B → D
+               然后分别放到：
+                   newTab[3] 
+                   newTab[3 + oldCap]
+```
 扩容代价：
 
 - 创建新数组。
@@ -131,6 +203,44 @@ JDK 8 中，扩容时不需要重新计算完整 hash。
 ```
 
 如果为 0，留在原位置；否则移动到原位置 + oldCap。
+
+```text
+   假设旧容量：oldCap = 16
+   旧下标计算：hash & (16 - 1)
+   即：
+     hash & 15
+     15 的二进制：0000 1111
+    所以旧数组只看 hash 的低 4 位。
+  扩容后：
+    newCap = 32
+    新下标计算：hash & (32 - 1)
+   即：hash & 31
+    31 的二进制：0001 1111
+    扩容后只比原来多看一位：
+    旧容量：0000 1111
+    新容量：0001 1111
+              ↑
+           新增加的位
+   这个新增位正好对应：
+   oldCap = 16 = 0001 0000
+  所以只需要判断：
+   e.hash & oldCap
+     情况一：新增位是 0
+      (e.hash & oldCap) == 0
+    新下标不变：newIndex = oldIndex
+   情况二：新增位是 1
+      (e.hash & oldCap) != 0
+  新下标：newIndex = oldIndex + oldCap
+
+所以扩容后，每个节点的位置只有两种可能：
+原位置
+原位置 + oldCap
+
+
+```
+
+
+
 
 ## 8. 树化条件
 
